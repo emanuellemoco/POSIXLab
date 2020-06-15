@@ -35,22 +35,27 @@ int main(int argc, char *argv[])
     pthread_t *tids = malloc(sizeof(pthread_t) * size);
 
     struct sigaction s_sf;
-    s_sf.sa_handler = sig_sf; // aqui vai a função a ser executada
+    s_sf.sa_handler = sig_sf;
     sigemptyset(&s_sf.sa_mask);
     s_sf.sa_flags = 0;
     sigaction(SIGSEGV, &s_sf, NULL);
 
     struct sigaction s_fp;
-    s_fp.sa_handler = sig_fp; // aqui vai a função a ser executada
+    s_fp.sa_handler = sig_fp;
     sigemptyset(&s_fp.sa_mask);
     s_fp.sa_flags = 0;
     sigaction(SIGFPE, &s_fp, NULL);
 
     struct sigaction s_cc;
-    s_cc.sa_handler = sig_cc; // aqui vai a função a ser executada
+    s_cc.sa_handler = sig_cc;
     sigemptyset(&s_cc.sa_mask);
     s_cc.sa_flags = 0;
     sigaction(SIGINT, &s_cc, NULL);
+
+    pid_t f;
+    printf("Pai: %d, id %d\n", getpid(), 0);
+
+    int st;
 
     if (argc > 1)
     {
@@ -62,19 +67,24 @@ int main(int argc, char *argv[])
                 if (strcmp(argv[j], all_tests[i].name) == 0)
                 {
                     // printf("entrei aqui\n");
-                    pthread_create(&tids[i], NULL, all_tests[i].function, &all_tests[i].res);
+                    //pthread_create(&tids[i], NULL, all_tests[i].function, &all_tests[i].res);
+                    f = fork();
+                    if (f == 0)
+                    {
+                        printf("Filho %d Pai: %d id %d\n", getpid(), getppid(), i);
+                        return all_tests[i].function();
+                    }
                 }
             }
         }
 
-        for (int i = 0; i < size; i++)
+        for (int j = 1; j < argc; j++)
         {
-            for (int j = 1; j < argc; j++)
+            wait(&st);
+            if (WIFEXITED(st))
             {
-                if (strcmp(argv[j], all_tests[i].name) == 0)
-                {
-                    pthread_join(tids[i], NULL);
-                }
+                if ((WEXITSTATUS(st) == 0))
+                    pass_count++;
             }
         }
     }
@@ -83,20 +93,25 @@ int main(int argc, char *argv[])
 
         for (int i = 0; i < size; i++)
         {
-            pthread_create(&tids[i], NULL, all_tests[i].function, &all_tests[i].res);
-            // if (all_tests[i].function() >= 0)
-            // {
-            //     printf("%s: [PASS]\n", all_tests[i].name);
-            //     pass_count++;
-            // };
+            //pthread_create(&tids[i], NULL, all_tests[i].function, &all_tests[i].res);
+            f = fork();
+            if (f == 0)
+            {
+                printf("Filho %d Pai: %d id %d\n", getpid(), getppid(), i);
+                return all_tests[i].function();
+            }
         }
 
         for (int i = 0; i < size; i++)
         {
-            pthread_join(tids[i], NULL);
-            printf("Res: %d \n", all_tests[i].res);
-
-            //valor do return: all_tests[i].res
+            //pid_t f2 = wait(&i);
+            //printf("id do primeiro filho a acabar: %d, pid %d\n", WEXITSTATUS(i), f2);
+            wait(&st);
+            if (WIFEXITED(st))
+            {
+                if ((WEXITSTATUS(st) == 0))
+                    pass_count++;
+            }
         }
     }
 

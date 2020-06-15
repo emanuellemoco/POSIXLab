@@ -4,14 +4,15 @@
 #include <string.h>
 #include <signal.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
-typedef void *(*test_func)(void *args);
+typedef int (*test_func)();
 
 typedef struct
 {
     char name[50];
     test_func function;
-    int res;
 } test_data;
 
 #define test_printf             \
@@ -23,7 +24,7 @@ typedef struct
         if (!(expr))                                                               \
         {                                                                          \
             printf("%s: [FAIL] %s in %s:%d\n", __func__, str, __FILE__, __LINE__); \
-            *res = -1;                                                             \
+            return -1;                                                             \
         }                                                                          \
     }
 
