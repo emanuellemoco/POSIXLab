@@ -12,39 +12,20 @@ void sig_fp(int num)
 void sig_cc(int num)
 { //ctrl c
     printf("entrou na sig_cc\n");
-    printf("Tem certeza? [s/n] ");
+    printf("Você deseja mesmo sair [s/n]?");
     char v;
     scanf("%c", &v);
-    printf("%c", v);
-
     if (v == 's')
-        //     Se o usuário digitar s o programa parará todos os testes em execução. Cada teste parado fica com status
-        // [STOP] e é mostrado o resumo de quantos testes passaram e quantos não passaram.
         exit(0);
 }
 
 int main(int argc, char *argv[])
 {
-    printf("%s", argv[1]);
-    printf("%s", argv[2]);
-    printf("%d", argc);
     int size = sizeof(all_tests) / sizeof(test_data);
-    printf("Running %d tests:\n", size);
-    printf("=====================\n\n");
+    // printf("Running %d tests:\n", size);
+    // printf("=====================\n\n");
     int pass_count = 0;
     pthread_t *tids = malloc(sizeof(pthread_t) * size);
-
-    struct sigaction s_sf;
-    s_sf.sa_handler = sig_sf;
-    sigemptyset(&s_sf.sa_mask);
-    s_sf.sa_flags = 0;
-    sigaction(SIGSEGV, &s_sf, NULL);
-
-    struct sigaction s_fp;
-    s_fp.sa_handler = sig_fp;
-    sigemptyset(&s_fp.sa_mask);
-    s_fp.sa_flags = 0;
-    sigaction(SIGFPE, &s_fp, NULL);
 
     struct sigaction s_cc;
     s_cc.sa_handler = sig_cc;
@@ -53,65 +34,65 @@ int main(int argc, char *argv[])
     sigaction(SIGINT, &s_cc, NULL);
 
     pid_t f;
-    printf("Pai: %d, id %d\n", getpid(), 0);
-
-    int st;
+    int st, pid;
+    int qtd = 0;
+    int lista_pid[7];
 
     if (argc > 1)
     {
+        printf("Running %d tests:\n", argc - 1);
+        printf("=====================\n\n");
         for (int i = 0; i < size; i++)
         {
             for (int j = 1; j < argc; j++)
             {
-                // printf("%s : %s\n  ", argv[j], all_tests[i].name);
                 if (strcmp(argv[j], all_tests[i].name) == 0)
                 {
-                    // printf("entrei aqui\n");
-                    //pthread_create(&tids[i], NULL, all_tests[i].function, &all_tests[i].res);
-                    f = fork();
-                    if (f == 0)
+                    qtd++;
+                    lista_pid[j - 1] = fork();
+                    if (lista_pid[j - 1] == 0)
                     {
-                        printf("Filho %d Pai: %d id %d\n", getpid(), getppid(), i);
                         return all_tests[i].function();
                     }
                 }
             }
         }
-
-        for (int j = 1; j < argc; j++)
-        {
-            wait(&st);
-            if (WIFEXITED(st))
-            {
-                if ((WEXITSTATUS(st) == 0))
-                    pass_count++;
-            }
-        }
     }
     else
     {
+        printf("Running %d tests:\n", size);
+        printf("=====================\n\n");
 
         for (int i = 0; i < size; i++)
         {
             //pthread_create(&tids[i], NULL, all_tests[i].function, &all_tests[i].res);
-            f = fork();
-            if (f == 0)
+            qtd++;
+            lista_pid[i] = fork();
+            if (lista_pid[i] == 0)
             {
-                printf("Filho %d Pai: %d id %d\n", getpid(), getppid(), i);
                 return all_tests[i].function();
             }
         }
+    }
 
-        for (int i = 0; i < size; i++)
+    for (int j = 0; j < qtd; j++)
+    {
+
+        pid = waitpid(lista_pid[j], &st, 0);
+
+        if (WIFEXITED(st))
         {
-            //pid_t f2 = wait(&i);
-            //printf("id do primeiro filho a acabar: %d, pid %d\n", WEXITSTATUS(i), f2);
-            wait(&st);
-            if (WIFEXITED(st))
+            if ((WEXITSTATUS(st) == 0))
             {
-                if ((WEXITSTATUS(st) == 0))
-                    pass_count++;
+                pass_count++;
+
+                printf("%s: \033[1;32m [PASS] \033[0m \n", all_tests[j].name);
             }
+        }
+
+        if (WIFSIGNALED(st))
+        {
+            printf("%s: \033[1;31m [FAIL] \033[0m %s\n", all_tests[j].name, strsignal(WTERMSIG(st)));
         }
     }
 
